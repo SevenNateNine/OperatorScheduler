@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30907.101
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{778DAE3C-4631-46EA-AA77-85C1314464D9}") = "OperatorScheduler", "OperatorScheduler.vbproj", "{43C6C320-166D-4CF7-B048-5EBB66E748EB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{43C6C320-166D-4CF7-B048-5EBB66E748EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{43C6C320-166D-4CF7-B048-5EBB66E748EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{43C6C320-166D-4CF7-B048-5EBB66E748EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{43C6C320-166D-4CF7-B048-5EBB66E748EB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A303DAB9-C2DF-4957-9C11-C616EE93CFE2}
+	EndGlobalSection
+EndGlobal
