@@ -43,6 +43,18 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Update="TabConsole.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="TabSchedule.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="TabOperator.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="TabOperator.vb">
+      <SubType>Form</SubType>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>
