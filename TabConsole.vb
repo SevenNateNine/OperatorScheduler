@@ -1,5 +1,6 @@
 ﻿Imports Microsoft.VisualBasic
 Imports System.Data.SqlClient
+Imports Microsoft.Office.Interop
 
 Partial Public Class OperatorMainForm
     ''' <summary>
@@ -53,7 +54,7 @@ Partial Public Class OperatorMainForm
                 ConsoleAdd(helpText)
             ' Reads e-mail messages and carries out reasonable responses. Is not effected by MonthYear Selection. 
             Case "Refresh email"
-                Logger("User requested to read un-read e-mails.", 1)
+                HandleUnreadEmails()
             ' Send e-mail of missing availabilities to non-outer operators. Is effected by MonthYear Selection. 
             Case "Send email to inner operators"
                 StartEmailChain()
@@ -120,7 +121,7 @@ Partial Public Class OperatorMainForm
                 Try
                     con.Open()
                     Dim reader As SqlDataReader = cmd.ExecuteReader()
-                    ' If no records found. Return
+                    ' If no records found. Return.
                     If Not reader.Read() Then
                         Logger(String.Format("All availabilities of {0}/{1} have been filled!", MonthYearPicker.Value.Month, MonthYearPicker.Value.Year))
                         Return
@@ -148,8 +149,13 @@ Partial Public Class OperatorMainForm
         openIDs.TrimEnd(CChar(";"))
         ConsoleAdd(openAvailabilities)
 
-        ' For each insider operator create MEC records for the selected month.
-        query = "INSERT INTO MonthEmailCheck (OperatorID, Month) SELECT Id, @MonthYear FROM Operator"
+        ' For each INSIDER operator create MEC records for the selected month.
+        query = "BEGIN 
+	                IF NOT EXISTS (SELECT * FROM MonthEmailCheck WHERE MONTH(MonthYear) = MONTH(@MonthYear) AND YEAR(MonthYear) = YEAR(@MonthYear) )
+	                BEGIN 
+		                INSERT INTO MonthEmailCheck (OperatorID, MonthYear) SELECT Id, @MonthYear FROM Operator WHERE IsOutside = 0 
+	                END
+                END"
         Using con As New SqlConnection(conString)
             Using cmd As New SqlCommand(query, con)
                 With cmd
@@ -173,7 +179,7 @@ Partial Public Class OperatorMainForm
         Dim opFirstName As String = ""
         Dim opLastName As String = ""
         ' Query returns list of INSIDER operators ordered by extra shifts, and seniority. 
-        query = "SELECT TOP 1 EmployeeID, FirstName, LastName, Email FROM Operator As O INNER JOIN MonthEmailCheck As M ON O.Id = M.OperatorID WHERE M.GotEmailed = 0 AND MONTH(M.Month) = 5 AND Seniority != -1 AND IsOutside = 0 ORDER BY ExtraShifts ASC, Seniority ASC"
+        query = "SELECT TOP 1 EmployeeID, FirstName, LastName, Email FROM Operator As O INNER JOIN MonthEmailCheck As M ON O.Id = M.OperatorID WHERE M.GotEmailed = 0 AND MONTH(M.MonthYear) = 5 AND Seniority != -1 AND IsOutside = 0 ORDER BY ExtraShifts ASC, Seniority ASC"
         Using con As New SqlConnection(conString)
             Using cmd As New SqlCommand(query, con)
                 With cmd
@@ -222,6 +228,29 @@ Partial Public Class OperatorMainForm
         ' After first iteration, include outside operators.
 
         ' When query returns 0. Select MonthEmailCheck (MEC) records that correlate to the month and reset GotEmailed to 0. Create MEC records for Outside operators if they don't exist
+    End Sub
+
+    Private Sub HandleUnreadEmails()
+        ' Reads unread emails
+        Logger("Received request to read inbox.")
+        Dim inboxItems As Outlook.Items = coHandler.readEmails(oApp)
+        Dim i As Integer
+        Dim oMsg As Outlook.MailItem
+        Dim consoleMsg As String = ""
+        For i = 1 To inboxItems.Count
+            oMsg = inboxItems.Item(i)
+            consoleMsg += String.Format("
+                Sender Email: {0} ({1})
+                Time Sent: {2}
+                Subject: {3}
+                *********************", oMsg.SenderName, , oMsg.ReceivedTime, oMsg.Subject)
+
+        Next
+        ConsoleAdd(consoleMsg)
+
+        ' If it contains "Open Availability Selection" and is prefaced with an id number or "pass" handle appropriately.
+        ' Pass: Print in console, mark MEC, done.
+        ' ID: Update availability with user EmployeeID, 
     End Sub
 
     Private Sub SendEmailRequest()

@@ -34,4 +34,16 @@ Public Class CustomOutlookHandler
             Console.WriteLine(ex.Message.ToString())
         End Try
     End Sub
+
+    Function readEmails(oApp As Outlook.Application) As Outlook.Items
+        Dim oNS As Outlook.NameSpace = oApp.GetNamespace("mapi")
+        ' oNS.Logon() ' to do 
+        Dim oInbox As Outlook.MAPIFolder = oNS.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox)
+        Dim oItems As Outlook.Items = oInbox.Items
+        oItems = oItems.Restrict("[Unread] = true")
+
+        oNS.Logoff()
+
+        Return oItems
+    End Function
 End Class
