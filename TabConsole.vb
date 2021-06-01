@@ -3,10 +3,11 @@ Imports System.Data.SqlClient
 
 Partial Public Class OperatorMainForm
     ''' <summary>
-    ''' adds text to rich textbox and adds to documentation table
+    ''' Adds Message to Console using ConsoleAdd() and inserts Message and MessageType into DB.
     ''' </summary>
     ''' <param name="MessageType"></param>
     ''' MessageType represents what kind of message it is. 
+    ''' 0 = Default
     ''' 1 = User Command
     ''' 2 = Email Response
     ''' <param name="Message"></param>
@@ -39,7 +40,9 @@ Partial Public Class OperatorMainForm
     End Sub
 
     ''' <summary>
-    ''' 
+    ''' "Help" - 
+    ''' "Refresh email" - 
+    ''' "Send email" - 
     ''' </summary>
     ''' <param name="sender"></param>
     ''' <param name="e"></param>
@@ -59,6 +62,9 @@ Partial Public Class OperatorMainForm
         End Select
     End Sub
 
+    ''' <summary>
+    ''' Queries all relevant documentation of the selected month/year and adds it to the console. 
+    ''' </summary>
     Private Sub GetRelevantDocumentation()
         Dim query As String = "SELECT * FROM Documentation WHERE MONTH(DateTimeTarget) = MONTH(@MonthYear) AND YEAR(DateTimeTarget) = YEAR(@MonthYear) ORDER BY TimeStamp"
         Using con As New SqlConnection(conString)
@@ -87,7 +93,7 @@ Partial Public Class OperatorMainForm
     End Sub
 
     ''' <summary>
-    ''' Queries messages of relevant time from DB and adds them to textbox
+    ''' Wrapper for GetRelevantDocumentation(). Informs user of changes via MessageBox. 
     ''' </summary>
     ''' <param name="sender"></param>
     ''' <param name="e"></param>
@@ -204,6 +210,9 @@ Partial Public Class OperatorMainForm
         ' coHandler.sendOptionEmail(oApp, {"nchan1@numc.edu"}, subject, options, body)
     End Sub
 
+    ''' <summary>
+    ''' 
+    ''' </summary>
     Private Sub ContinueEmailChain()
         ' Get missing availabilities. If none. End chain.
 

@@ -32,7 +32,6 @@ Partial Class OperatorMainForm
         Me.SaveBtn = New System.Windows.Forms.Button()
         Me.OperatorTab = New System.Windows.Forms.TabControl()
         Me.OperatorTabPage = New System.Windows.Forms.TabPage()
-        Me.Button1 = New System.Windows.Forms.Button()
         Me.ScheduleTab = New System.Windows.Forms.TabPage()
         Me.RefreshButton = New System.Windows.Forms.Button()
         Me.SaveAvalabilityChangesBtn = New System.Windows.Forms.Button()
@@ -78,12 +77,12 @@ Partial Class OperatorMainForm
         Me.OperatorDataGridView.Location = New System.Drawing.Point(32, 48)
         Me.OperatorDataGridView.Name = "OperatorDataGridView"
         Me.OperatorDataGridView.RowTemplate.Height = 25
-        Me.OperatorDataGridView.Size = New System.Drawing.Size(520, 296)
+        Me.OperatorDataGridView.Size = New System.Drawing.Size(728, 296)
         Me.OperatorDataGridView.TabIndex = 0
         '
         'SaveBtn
         '
-        Me.SaveBtn.Location = New System.Drawing.Point(200, 352)
+        Me.SaveBtn.Location = New System.Drawing.Point(312, 352)
         Me.SaveBtn.Name = "SaveBtn"
         Me.SaveBtn.Size = New System.Drawing.Size(176, 23)
         Me.SaveBtn.TabIndex = 10
@@ -103,7 +102,6 @@ Partial Class OperatorMainForm
         '
         'OperatorTabPage
         '
-        Me.OperatorTabPage.Controls.Add(Me.Button1)
         Me.OperatorTabPage.Controls.Add(Me.SaveBtn)
         Me.OperatorTabPage.Controls.Add(Me.OperatorDataGridView)
         Me.OperatorTabPage.Location = New System.Drawing.Point(4, 24)
@@ -113,15 +111,6 @@ Partial Class OperatorMainForm
         Me.OperatorTabPage.TabIndex = 0
         Me.OperatorTabPage.Text = "Operators"
         Me.OperatorTabPage.UseVisualStyleBackColor = True
-        '
-        'Button1
-        '
-        Me.Button1.Location = New System.Drawing.Point(640, 216)
-        Me.Button1.Name = "Button1"
-        Me.Button1.Size = New System.Drawing.Size(75, 23)
-        Me.Button1.TabIndex = 11
-        Me.Button1.Text = "Button1"
-        Me.Button1.UseVisualStyleBackColor = True
         '
         'ScheduleTab
         '
@@ -321,7 +310,6 @@ Partial Class OperatorMainForm
     Friend WithEvents IsScheduledCheckBox As CheckBox
     Friend WithEvents SaveAvalabilityChangesBtn As Button
     Friend WithEvents ShowMissingBtn As Button
-    Friend WithEvents Button1 As Button
     Friend WithEvents ConsoleTab As TabPage
     Friend WithEvents ActionComboBox As ComboBox
     Friend WithEvents ConsoleRichTextBox As RichTextBox
