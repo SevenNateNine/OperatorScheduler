@@ -3,6 +3,11 @@ Imports System.Data.SqlClient
 Imports Microsoft.Office.Interop
 
 Partial Public Class OperatorMainForm
+    Dim helpText As String = String.Format("
+        Read Unread Emails - Reads and handles unread emails concerning extra shifts requests, then continues email chain. Is NOT affected by MonthYear Selection. 
+        Send Email Requests - Sends email concerning unfilled shifts to most senior operator with the least amount of extra shifts. Is affected by MonthYear Selection.
+        Reset Extra Shift Count - Resets shift count of all operators in database. Is NOT affected by MonthYear Selection.")
+
     ''' <summary>
     ''' Adds Message to Console using ConsoleAdd() and inserts Message and MessageType into DB.
     ''' </summary>
@@ -11,6 +16,7 @@ Partial Public Class OperatorMainForm
     ''' 0 = Default
     ''' 1 = User Command
     ''' 2 = Email Response
+    ''' 8 = Universal Message
     ''' <param name="Message"></param>
     Private Sub Logger(ByVal Message As String, Optional ByVal MessageType As Integer = 0)
         ' add documentation to query
@@ -24,14 +30,14 @@ Partial Public Class OperatorMainForm
                     .CommandText = query
                     .Parameters.AddWithValue("@MessageType", MessageType)
                     .Parameters.AddWithValue("@Message", Message)
-                    .Parameters.AddWithValue("@DateTimeTarget", MonthYearPicker.Value)
+                    .Parameters.AddWithValue("@DateTimeTarget", If(MessageType = 8, DBNull.Value, MonthYearPicker.Value))
                 End With
                 Try
                     con.Open()
                     cmd.ExecuteNonQuery()
                     con.Close()
                 Catch ex As Exception
-                    MessageBox.Show(ex.Message.ToString(), "Error")
+                    MessageBox.Show(ex.Message.ToString(), "Logger() Error")
                 End Try
             End Using
         End Using
@@ -41,25 +47,28 @@ Partial Public Class OperatorMainForm
     End Sub
 
     ''' <summary>
-    ''' "Help" - 
-    ''' "Refresh email" - 
-    ''' "Send email" - 
+    ''' Read Unread Emails - Reads e-mail messages and carries out reasonable responses. Is NOT affected by MonthYear Selection. 
+    ''' Send Email Requests - Send e-mail of missing availabilities to non-outer operators. Is affected by MonthYear Selection.
+    ''' Reset Extra Shift Count - Resets shift count of all operators in database. Is NOT affected by MonthYear Selection. 
+    ''' Help - Slaps a bunch of text in the ConsoleRichTextBox. Is NOT affected by MonthYear Selection. 
     ''' </summary>
     ''' <param name="sender"></param>
     ''' <param name="e"></param>
     Private Sub ActionButton_Click(sender As Object, e As EventArgs) Handles ActionButton.Click
         Select Case ActionComboBox.SelectedItem.ToString()
-            ' Slaps a bunch of text in the ConsoleRichTextBox. Is not effected by MonthYear Selection. 
+            ' Slaps a bunch of text in the ConsoleRichTextBox. Is NOT affected by MonthYear Selection. 
             Case "Help"
                 ConsoleAdd(helpText)
-            ' Reads e-mail messages and carries out reasonable responses. Is not effected by MonthYear Selection. 
-            Case "Refresh email"
+            ' Reads e-mail messages and carries out reasonable responses. Is NOT affected by MonthYear Selection. 
+            Case "Read Unread Emails"
                 HandleUnreadEmails()
-            ' Send e-mail of missing availabilities to non-outer operators. Is effected by MonthYear Selection. 
-            Case "Send email to inner operators"
+            ' Send e-mail of missing availabilities to non-outer operators. Is affected by MonthYear Selection. 
+            Case "Send Email Requests"
                 StartEmailChain()
-            ' Send e-mail of missing availabilities to ALL operators. Is effected by MonthYear Selection. 
-            Case "Send email to ALL operators"
+            ' Resets shift count of all operators in database. Is NOT affected by MonthYear Selection. 
+            Case "Reset Extra Shift Count"
+                ResetExtraShiftCount()
+
         End Select
     End Sub
 
@@ -67,7 +76,7 @@ Partial Public Class OperatorMainForm
     ''' Queries all relevant documentation of the selected month/year and adds it to the console. 
     ''' </summary>
     Private Sub GetRelevantDocumentation()
-        Dim query As String = "SELECT * FROM Documentation WHERE MONTH(DateTimeTarget) = MONTH(@MonthYear) AND YEAR(DateTimeTarget) = YEAR(@MonthYear) ORDER BY TimeStamp"
+        Dim query As String = "SELECT * FROM Documentation WHERE (MONTH(DateTimeTarget) = MONTH(@MonthYear) AND YEAR(DateTimeTarget) = YEAR(@MonthYear)) OR DateTimeTarget IS NULL ORDER BY TimeStamp"
         Using con As New SqlConnection(conString)
             Using cmd As New SqlCommand(query, con)
                 With cmd
@@ -333,12 +342,33 @@ Partial Public Class OperatorMainForm
         End Using
     End Sub
 
+    Private Sub ResetExtraShiftCount()
+        Dim query As String = "UPDATE Operator SET ExtraShifts = 0"
+        Using con As New SqlConnection(conString)
+            Using cmd As New SqlCommand(query, con)
+                With cmd
+                    .Connection = con
+                    .CommandType = CommandType.Text
+                    .CommandText = query
+                End With
+                Try
+                    con.Open()
+                    cmd.ExecuteNonQuery()
+                    con.Close()
+                Catch ex As Exception
+                    MessageBox.Show(ex.Message.ToString(), "ResetExtraShiftCount() Error")
+                End Try
+            End Using
+        End Using
+        Logger("Reset Extra Shift count for ALL operators.", 8)
+    End Sub
+
     ''' <summary>
     ''' 
     ''' </summary>
     Private Sub HandleUnreadEmails()
         ' Reads unread emails.
-        Logger("Received request to read inbox.")
+        Logger("Received request to read inbox.", 8)
         Dim inboxItems As Outlook.Items = coHandler.readEmails(oApp)
         Dim i As Integer
         Dim oMsg As Outlook.MailItem

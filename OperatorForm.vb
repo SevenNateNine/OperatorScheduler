@@ -15,7 +15,6 @@ Public Class OperatorMainForm
     Dim startDateIndex As Integer = 4
     Dim endDateIndex As Integer = 6
     Dim isScheduledIndex As Integer = 8
-    Dim helpText As String = "This application is made "
 
     Private Sub New()
         oApp = New Outlook.Application

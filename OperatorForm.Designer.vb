@@ -254,7 +254,7 @@ Partial Class OperatorMainForm
         'ActionComboBox
         '
         Me.ActionComboBox.FormattingEnabled = True
-        Me.ActionComboBox.Items.AddRange(New Object() {"Refresh email", "Send email to inner operators", "Send email to ALL operators", "Help"})
+        Me.ActionComboBox.Items.AddRange(New Object() {"Read Unread Emails", "Send Email Requests", "Reset Extra Shift Count", "Help"})
         Me.ActionComboBox.Location = New System.Drawing.Point(248, 384)
         Me.ActionComboBox.Name = "ActionComboBox"
         Me.ActionComboBox.Size = New System.Drawing.Size(200, 23)
