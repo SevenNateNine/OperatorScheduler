@@ -47,32 +47,6 @@ Partial Public Class OperatorMainForm
     End Sub
 
     ''' <summary>
-    ''' Read Unread Emails - Reads e-mail messages and carries out reasonable responses. Is NOT affected by MonthYear Selection. 
-    ''' Send Email Requests - Send e-mail of missing availabilities to non-outer operators. Is affected by MonthYear Selection.
-    ''' Reset Extra Shift Count - Resets shift count of all operators in database. Is NOT affected by MonthYear Selection. 
-    ''' Help - Slaps a bunch of text in the ConsoleRichTextBox. Is NOT affected by MonthYear Selection. 
-    ''' </summary>
-    ''' <param name="sender"></param>
-    ''' <param name="e"></param>
-    Private Sub ActionButton_Click(sender As Object, e As EventArgs) Handles ActionButton.Click
-        Select Case ActionComboBox.SelectedItem.ToString()
-            ' Slaps a bunch of text in the ConsoleRichTextBox. Is NOT affected by MonthYear Selection. 
-            Case "Help"
-                ConsoleAdd(helpText)
-            ' Reads e-mail messages and carries out reasonable responses. Is NOT affected by MonthYear Selection. 
-            Case "Read Unread Emails"
-                HandleUnreadEmails()
-            ' Send e-mail of missing availabilities to non-outer operators. Is affected by MonthYear Selection. 
-            Case "Send Email Requests"
-                StartEmailChain()
-            ' Resets shift count of all operators in database. Is NOT affected by MonthYear Selection. 
-            Case "Reset Extra Shift Count"
-                ResetExtraShiftCount()
-
-        End Select
-    End Sub
-
-    ''' <summary>
     ''' Queries all relevant documentation of the selected month/year and adds it to the console. 
     ''' </summary>
     Private Sub GetRelevantDocumentation()
@@ -112,6 +86,102 @@ Partial Public Class OperatorMainForm
         MessageBox.Show(String.Format("Now showing documentation regarding the {0} schedule.", MonthYearPicker.Value.ToString("MMM yyyy")))
     End Sub
 
+    ''' <summary>
+    ''' Read Unread Emails - Reads e-mail messages and carries out reasonable responses. Is NOT affected by MonthYear Selection. 
+    ''' Send Email Requests - Send e-mail of missing availabilities to non-outer operators. Is affected by MonthYear Selection.
+    ''' Reset Extra Shift Count - Resets shift count of all operators in database. Is NOT affected by MonthYear Selection. 
+    ''' Help - Slaps a bunch of text in the ConsoleRichTextBox. Is NOT affected by MonthYear Selection. 
+    ''' </summary>
+    ''' <param name="sender"></param>
+    ''' <param name="e"></param>
+    Private Sub ActionButton_Click(sender As Object, e As EventArgs) Handles ActionButton.Click
+        Select Case ActionComboBox.SelectedItem.ToString()
+            ' Slaps a bunch of text in the ConsoleRichTextBox. Is NOT affected by MonthYear Selection. 
+            Case "Help"
+                ConsoleAdd(helpText)
+            ' Reads e-mail messages and carries out reasonable responses. Is NOT affected by MonthYear Selection. 
+            Case "Read Unread Emails"
+                HandleUnreadEmails()
+            ' Send e-mail of missing availabilities to non-outer operators. Is affected by MonthYear Selection. 
+            Case "Send Email Requests"
+                StartEmailChain()
+            ' Resets shift count of all operators in database. Is NOT affected by MonthYear Selection. 
+            Case "Reset Extra Shift Count"
+                ResetExtraShiftCount()
+        End Select
+    End Sub
+    ''' <summary>
+    ''' Gets all Availabilities pertaining to the specific month/year where no Operator is assigned. 
+    ''' </summary>
+    ''' <returns>
+    '''     An empty list if there are no availabilities that meet the criteria.
+    '''     Two lists, one containing a visual representation of unassigned shifts, and another containing just the IDs for voting.
+    ''' </returns>
+    Private Function GetMissingAvailabilities() As List(Of String)()
+        Dim output As New List(Of String)()
+        Dim idOutput As New List(Of String)()
+        Dim query As String = "SELECT * FROM Availability WHERE OperatorID IS NULL AND MONTH(StartDate) = MONTH(@MonthYear) AND YEAR(StartDate) = YEAR(@MonthYear)"
+        Using con As New SqlConnection(conString)
+            Using cmd As New SqlCommand(query, con)
+                With cmd
+                    .Connection = con
+                    .CommandType = CommandType.Text
+                    .CommandText = query
+                    .Parameters.AddWithValue("@MonthYear", MonthYearPicker.Value)
+                End With
+                Try
+                    con.Open()
+                    Dim reader As SqlDataReader = cmd.ExecuteReader()
+                    ' If no records found. Return.
+                    If Not reader.Read() Then
+                        Logger(String.Format("All availabilities of {0}/{1} have been filled!", MonthYearPicker.Value.Month, MonthYearPicker.Value.Year))
+                        Return Array.Empty(Of List(Of String))()
+                    End If
+                    While reader.Read()
+                        output.Add(String.Format("{0}: {1} {2} - {3} {4}", reader("Id").ToString(), reader("StartDate").ToString().Split(" ")(0), reader("StartTime").ToString(), reader("EndDate").ToString().Split(" ")(0), reader("EndTime").ToString()))
+                        idOutput.Add(reader("Id").ToString())
+                    End While
+                    con.Close()
+                Catch ex As Exception
+                    MessageBox.Show(ex.Message.ToString(), "Error")
+                End Try
+            End Using
+        End Using
+        Return {output, idOutput}
+    End Function
+    ''' <summary>
+    ''' Wrapper that calls GetMissingAvailabilities() 
+    ''' </summary>
+    ''' <returns>
+    ''' If there are no free availabilities, returns a list containing an empty String.
+    ''' Returns two Strings, one containing the options used for voting, the other a visual representation of unassigned shifts. 
+    ''' </returns>
+    Private Function GetMAWrapper() As String()
+        Dim lists As List(Of String)() = GetMissingAvailabilities()
+        If lists Is Array.Empty(Of List(Of String))() Then
+            Return {""}
+        End If
+        Dim output As List(Of String) = lists(0)
+        Dim idOutput As List(Of String) = lists(1)
+
+        Dim openAvailabilities As String = vbLf
+        Dim openIDs As String = "Pass;"
+        For Each item As String In output
+            openAvailabilities += vbTab + item + vbLf
+        Next
+        For Each item As String In idOutput
+            openIDs += String.Format("{0};", item)
+        Next
+        openIDs.TrimEnd(CChar(";"))
+
+        ConsoleAdd(openAvailabilities)
+
+        Return {openIDs, openAvailabilities}
+    End Function
+    ''' <summary>
+    ''' All MonthEmailCheck records related to the Month Year are set to False. Used when all MEC records are set to True and there are unassigned shifts remaining. 
+    ''' </summary>
+    ''' <param name="monthYear"></param>
     Private Sub ClearRelevantMECRecords(ByVal monthYear As String)
         Dim query As String = "UPDATE MonthEmailCheck SET GotEmailed = 0 WHERE MONTH(MonthYear) = MONTH(@MonthYear) AND YEAR(MonthYear) = YEAR(@MonthYear)"
         Using con As New SqlConnection(conString)
@@ -166,63 +236,6 @@ Partial Public Class OperatorMainForm
 
         Return returnArray
     End Function
-
-    Private Function GetMissingAvailabilities() As List(Of String)()
-        Dim output As New List(Of String)()
-        Dim idOutput As New List(Of String)()
-        Dim query As String = "SELECT * FROM Availability WHERE OperatorID IS NULL AND MONTH(StartDate) = MONTH(@MonthYear) AND YEAR(StartDate) = YEAR(@MonthYear)"
-        Using con As New SqlConnection(conString)
-            Using cmd As New SqlCommand(query, con)
-                With cmd
-                    .Connection = con
-                    .CommandType = CommandType.Text
-                    .CommandText = query
-                    .Parameters.AddWithValue("@MonthYear", MonthYearPicker.Value)
-                End With
-                Try
-                    con.Open()
-                    Dim reader As SqlDataReader = cmd.ExecuteReader()
-                    ' If no records found. Return.
-                    If Not reader.Read() Then
-                        Logger(String.Format("All availabilities of {0}/{1} have been filled!", MonthYearPicker.Value.Month, MonthYearPicker.Value.Year))
-                        Return Array.Empty(Of List(Of String))()
-                    End If
-                    While reader.Read()
-                        output.Add(String.Format("{0}: {1} {2} - {3} {4}", reader("Id").ToString(), reader("StartDate").ToString().Split(" ")(0), reader("StartTime").ToString(), reader("EndDate").ToString().Split(" ")(0), reader("EndTime").ToString()))
-                        idOutput.Add(reader("Id").ToString())
-                    End While
-                    con.Close()
-                Catch ex As Exception
-                    MessageBox.Show(ex.Message.ToString(), "Error")
-                End Try
-            End Using
-        End Using
-        Return {output, idOutput}
-    End Function
-
-    Private Function GetMAWrapper() As String()
-        Dim lists As List(Of String)() = GetMissingAvailabilities()
-        If lists Is Array.Empty(Of List(Of String))() Then
-            Return {""}
-        End If
-        Dim output As List(Of String) = lists(0)
-        Dim idOutput As List(Of String) = lists(1)
-
-        Dim openAvailabilities As String = vbLf
-        Dim openIDs As String = "Pass;"
-        For Each item As String In output
-            openAvailabilities += vbTab + item + vbLf
-        Next
-        For Each item As String In idOutput
-            openIDs += String.Format("{0};", item)
-        Next
-        openIDs.TrimEnd(CChar(";"))
-
-        ConsoleAdd(openAvailabilities)
-
-        Return {openIDs, openAvailabilities}
-    End Function
-
     Private Sub OutgoingEmailHandler(ByVal openIDs As String, ByVal openAvailabilities As String, ByVal monthYear As String)
         ' Query returns list of INSIDER operators ordered by extra shifts, and seniority. 
         Dim nextEmailed As String() = GetNextToBeEmailed(MonthYearPicker.Value)
@@ -236,7 +249,6 @@ Partial Public Class OperatorMainForm
         ' send email here
         coHandler.sendOptionEmail(oApp, {"nchan1@numc.edu"}, subject, options, body)
     End Sub
-
     Private Sub StartEmailChain()
         Dim query As String
         ConsoleAdd("Collecting unassigned shifts.")
@@ -276,23 +288,6 @@ Partial Public Class OperatorMainForm
 
         OutgoingEmailHandler(openIDs, openAvailabilities, MonthYearPicker.Value)
     End Sub
-
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    Private Sub ContinueEmailChain(monthYear As String)
-        ' Get missing availabilities. 
-        Dim gmawResults As String() = GetMAWrapper()
-        Dim openIDs As String = gmawResults(0)
-        Dim openAvailabilities As String = gmawResults(1)
-        ' If none. End chain.
-        If openIDs.Length = 0 Then
-            Return
-        End If
-
-        OutgoingEmailHandler(openIDs, openAvailabilities, monthYear)
-    End Sub
-
     Private Sub HandleAvailabilityAcceptance(ByVal email As String, ByVal id As String)
         Dim query As String = "BEGIN TRANSACTION;
             UPDATE Availability SET OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) WHERE Id = @Id;
@@ -317,7 +312,6 @@ Partial Public Class OperatorMainForm
             End Using
         End Using
     End Sub
-
     Private Sub UpdateMonthEmailCheck(ByVal email As String, ByVal monthYear As String)
         Dim query As String = "UPDATE MonthEmailCheck SET GotEmailed = 1 
             WHERE OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) 
@@ -341,26 +335,20 @@ Partial Public Class OperatorMainForm
             End Using
         End Using
     End Sub
+    ''' <summary>
+    ''' 
+    ''' </summary>
+    Private Sub ContinueEmailChain(monthYear As String)
+        ' Get missing availabilities. 
+        Dim gmawResults As String() = GetMAWrapper()
+        Dim openIDs As String = gmawResults(0)
+        Dim openAvailabilities As String = gmawResults(1)
+        ' If none. End chain.
+        If openIDs.Length = 0 Then
+            Return
+        End If
 
-    Private Sub ResetExtraShiftCount()
-        Dim query As String = "UPDATE Operator SET ExtraShifts = 0"
-        Using con As New SqlConnection(conString)
-            Using cmd As New SqlCommand(query, con)
-                With cmd
-                    .Connection = con
-                    .CommandType = CommandType.Text
-                    .CommandText = query
-                End With
-                Try
-                    con.Open()
-                    cmd.ExecuteNonQuery()
-                    con.Close()
-                Catch ex As Exception
-                    MessageBox.Show(ex.Message.ToString(), "ResetExtraShiftCount() Error")
-                End Try
-            End Using
-        End Using
-        Logger("Reset Extra Shift count for ALL operators.", 8)
+        OutgoingEmailHandler(openIDs, openAvailabilities, monthYear)
     End Sub
 
     ''' <summary>
@@ -422,6 +410,29 @@ Partial Public Class OperatorMainForm
         ' Continue Chain
         ContinueEmailChain(MonthYearPicker.Value)
     End Sub
+
+    Private Sub ResetExtraShiftCount()
+        Dim query As String = "UPDATE Operator SET ExtraShifts = 0"
+        Using con As New SqlConnection(conString)
+            Using cmd As New SqlCommand(query, con)
+                With cmd
+                    .Connection = con
+                    .CommandType = CommandType.Text
+                    .CommandText = query
+                End With
+                Try
+                    con.Open()
+                    cmd.ExecuteNonQuery()
+                    con.Close()
+                Catch ex As Exception
+                    MessageBox.Show(ex.Message.ToString(), "ResetExtraShiftCount() Error")
+                End Try
+            End Using
+        End Using
+        Logger("Reset Extra Shift count for ALL operators.", 8)
+    End Sub
+
+
 
     ''' <summary>
     ''' Returns True if email arg is in the database. False otherwise. 
