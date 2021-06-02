@@ -202,6 +202,15 @@ Partial Public Class OperatorMainForm
             End Using
         End Using
     End Sub
+    ''' <summary>
+    '''     Queries the database to determine which operator will be offered extra shifts next based on seniority and how many extra shifts they currently have accumulated.\
+    ''' </summary>
+    ''' <param name="monthYear">
+    '''     Selects Operators who hasn't been emailed for that monthYear's schedule.
+    ''' </param>
+    ''' <returns>
+    '''     A String array that contains the operator's email, firstname, and lastname
+    ''' </returns>
     Private Function GetNextToBeEmailed(ByVal monthYear As String) As String()
         Dim returnArray As String() = {"", "", ""}
         Dim query As String = "SELECT TOP 1 EmployeeID, FirstName, LastName, Email FROM Operator As O INNER JOIN MonthEmailCheck As M ON O.Id = M.OperatorID 
@@ -236,6 +245,18 @@ Partial Public Class OperatorMainForm
 
         Return returnArray
     End Function
+    ''' <summary>
+    '''     Gets the next person to be emailed and send them an option email.
+    ''' </summary>
+    ''' <param name="openIDs">
+    '''     Voting options the operator will use to vote.
+    ''' </param>
+    ''' <param name="openAvailabilities">
+    '''     The schedule in a visual format so the user will know which voting option corresponds to which shift.
+    ''' </param>
+    ''' <param name="monthYear">
+    '''     The schedule the email will be sent for.
+    ''' </param>
     Private Sub OutgoingEmailHandler(ByVal openIDs As String, ByVal openAvailabilities As String, ByVal monthYear As String)
         ' Query returns list of INSIDER operators ordered by extra shifts, and seniority. 
         Dim nextEmailed As String() = GetNextToBeEmailed(MonthYearPicker.Value)
@@ -246,9 +267,12 @@ Partial Public Class OperatorMainForm
         Dim body As String = String.Format("Please select an number option that corresponds to the desired availability date that you would like to fill.{0}If you do not want any, select the 'Pass' option. {1}", vbLf, openAvailabilities)
         Logger(String.Format("Sending email offer to {0} {1} using email, {2} ", nextEmailed(1), nextEmailed(2), nextEmailed(0)))
 
-        ' send email here
-        coHandler.sendOptionEmail(oApp, {"nchan1@numc.edu"}, subject, options, body)
+        ' Replace 
+        coHandler.sendOptionEmail(oApp, {nextEmailed(1)}, subject, options, body)
     End Sub
+    ''' <summary>
+    ''' 
+    ''' </summary>
     Private Sub StartEmailChain()
         Dim query As String
         ConsoleAdd("Collecting unassigned shifts.")
@@ -288,6 +312,11 @@ Partial Public Class OperatorMainForm
 
         OutgoingEmailHandler(openIDs, openAvailabilities, MonthYearPicker.Value)
     End Sub
+    ''' <summary>
+    ''' 
+    ''' </summary>
+    ''' <param name="email"></param>
+    ''' <param name="id"></param>
     Private Sub HandleAvailabilityAcceptance(ByVal email As String, ByVal id As String)
         Dim query As String = "BEGIN TRANSACTION;
             UPDATE Availability SET OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) WHERE Id = @Id;
@@ -312,6 +341,11 @@ Partial Public Class OperatorMainForm
             End Using
         End Using
     End Sub
+    ''' <summary>
+    ''' 
+    ''' </summary>
+    ''' <param name="email"></param>
+    ''' <param name="monthYear"></param>
     Private Sub UpdateMonthEmailCheck(ByVal email As String, ByVal monthYear As String)
         Dim query As String = "UPDATE MonthEmailCheck SET GotEmailed = 1 
             WHERE OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) 
@@ -338,6 +372,7 @@ Partial Public Class OperatorMainForm
     ''' <summary>
     ''' 
     ''' </summary>
+    ''' <param name="monthYear"></param>
     Private Sub ContinueEmailChain(monthYear As String)
         ' Get missing availabilities. 
         Dim gmawResults As String() = GetMAWrapper()
@@ -350,7 +385,6 @@ Partial Public Class OperatorMainForm
 
         OutgoingEmailHandler(openIDs, openAvailabilities, monthYear)
     End Sub
-
     ''' <summary>
     ''' 
     ''' </summary>
@@ -410,7 +444,9 @@ Partial Public Class OperatorMainForm
         ' Continue Chain
         ContinueEmailChain(MonthYearPicker.Value)
     End Sub
-
+    ''' <summary>
+    ''' 
+    ''' </summary>
     Private Sub ResetExtraShiftCount()
         Dim query As String = "UPDATE Operator SET ExtraShifts = 0"
         Using con As New SqlConnection(conString)
