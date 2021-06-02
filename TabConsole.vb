@@ -103,6 +103,26 @@ Partial Public Class OperatorMainForm
         MessageBox.Show(String.Format("Now showing documentation regarding the {0} schedule.", MonthYearPicker.Value.ToString("MMM yyyy")))
     End Sub
 
+    Private Sub ClearRelevantMECRecords(ByVal monthYear As String)
+        Dim query As String = "UPDATE MonthEmailCheck SET GotEmailed = 0 WHERE MONTH(MonthYear) = MONTH(@MonthYear) AND YEAR(MonthYear) = YEAR(@MonthYear)"
+        Using con As New SqlConnection(conString)
+            Using cmd As New SqlCommand(query, con)
+                With cmd
+                    .Connection = con
+                    .CommandType = CommandType.Text
+                    .CommandText = query
+                    .Parameters.AddWithValue("@MonthYear", monthYear)
+                End With
+                Try
+                    con.Open()
+                    cmd.ExecuteNonQuery()
+                    con.Close()
+                Catch ex As Exception
+                    MessageBox.Show(ex.Message.ToString(), "Error")
+                End Try
+            End Using
+        End Using
+    End Sub
     Private Function GetNextToBeEmailed(ByVal monthYear As String) As String()
         Dim returnArray As String() = {"", "", ""}
         Dim query As String = "SELECT TOP 1 EmployeeID, FirstName, LastName, Email FROM Operator As O INNER JOIN MonthEmailCheck As M ON O.Id = M.OperatorID 
@@ -121,6 +141,7 @@ Partial Public Class OperatorMainForm
                     ' If no records found. Return
                     If Not reader.Read() Then
                         ' Clear all relevants MEC records
+                        ClearRelevantMECRecords(monthYear)
                         Logger("Error. Please check database.")
                         Return Array.Empty(Of String)()
                     End If
@@ -170,8 +191,11 @@ Partial Public Class OperatorMainForm
         Return {output, idOutput}
     End Function
 
-    Private Function GetMAWrapper() As String
+    Private Function GetMAWrapper() As String()
         Dim lists As List(Of String)() = GetMissingAvailabilities()
+        If lists Is Array.Empty(Of List(Of String))() Then
+            Return {""}
+        End If
         Dim output As List(Of String) = lists(0)
         Dim idOutput As List(Of String) = lists(1)
 
@@ -187,14 +211,33 @@ Partial Public Class OperatorMainForm
 
         ConsoleAdd(openAvailabilities)
 
-        Return openIDs
+        Return {openIDs, openAvailabilities}
     End Function
+
+    Private Sub OutgoingEmailHandler(ByVal openIDs As String, ByVal openAvailabilities As String, ByVal monthYear As String)
+        ' Query returns list of INSIDER operators ordered by extra shifts, and seniority. 
+        Dim nextEmailed As String() = GetNextToBeEmailed(MonthYearPicker.Value)
+
+        ' Send email to first choice. Mark their ME.GotEmailed = True. Ball is then passed to ReadEmail()
+        Dim subject As String = String.Format("{0}/{1} Open Availability Selection", monthYear.Split("/")(0), monthYear.Split("/")(2))
+        Dim options As String = openIDs
+        Dim body As String = String.Format("Please select an number option that corresponds to the desired availability date that you would like to fill.{0}If you do not want any, select the 'Pass' option. {1}", vbLf, openAvailabilities)
+        Logger(String.Format("Sending email offer to {0} {1} using email, {2} ", nextEmailed(1), nextEmailed(2), nextEmailed(0)))
+
+        ' send email here
+        coHandler.sendOptionEmail(oApp, {"nchan1@numc.edu"}, subject, options, body)
+    End Sub
 
     Private Sub StartEmailChain()
         Dim query As String
         ConsoleAdd("Collecting unassigned shifts.")
         ' Get missing availabilities. If none. End chain.
-        Dim openIDs As String = GetMAWrapper()
+        Dim gmawResults As String() = GetMAWrapper()
+        Dim openIDs As String = gmawResults(0)
+        Dim openAvailabilities As String = gmawResults(1)
+        If openIDs.Length = 0 Then
+            Return
+        End If
 
         ' For each INSIDER operator create MEC records for the selected month.
         query = "BEGIN 
@@ -222,37 +265,23 @@ Partial Public Class OperatorMainForm
             End Using
         End Using
 
-        ' Query returns list of INSIDER operators ordered by extra shifts, and seniority. 
-        Dim nextEmailed As String() = GetNextToBeEmailed(MonthYearPicker.Value)
-
-        ' Send email to first choice. Mark their ME.GotEmailed = True. Ball is then passed to ReadEmail()
-        Dim subject As String = String.Format("{0}/{1} Open Availability Selection", MonthYearPicker.Value.Month, MonthYearPicker.Value.Year)
-        Dim options As String = openIDs
-        Dim body As String = String.Format("Please select an number option that corresponds to the desired availability date that you would like to fill.{0}If you do not want any, select the 'Pass' option. {1}", vbLf, openAvailabilities)
-        Logger(String.Format("Sending email offer to {0} {1} using email, {2} ", nextEmailed(1), nextEmailed(2), nextEmailed(0)))
-
-        '
-        ' coHandler.sendOptionEmail(oApp, {"nchan1@numc.edu"}, subject, options, body)
+        OutgoingEmailHandler(openIDs, openAvailabilities, MonthYearPicker.Value)
     End Sub
 
     ''' <summary>
     ''' 
     ''' </summary>
     Private Sub ContinueEmailChain(monthYear As String)
-        ' Get missing availabilities. If none. End chain.
-        Dim openIDs As String = GetMAWrapper()
+        ' Get missing availabilities. 
+        Dim gmawResults As String() = GetMAWrapper()
+        Dim openIDs As String = gmawResults(0)
+        Dim openAvailabilities As String = gmawResults(1)
+        ' If none. End chain.
+        If openIDs.Length = 0 Then
+            Return
+        End If
 
-        ' Get the most senior person with the least amount of extra shifts who was not e-mailed already. 
-        Dim nextEmailed As String() = GetNextToBeEmailed(monthYear)
-        ' Send email to first choice. Mark their ME.GotEmailed = True. Ball is then passed to ReadEmail()
-        Dim subject As String = String.Format("{0}/{1} Open Availability Selection", MonthYearPicker.Value.Month, MonthYearPicker.Value.Year)
-        Dim options As String = openIDs
-        Dim body As String = String.Format("Please select an number option that corresponds to the desired availability date that you would like to fill.{0}If you do not want any, select the 'Pass' option. {1}", vbLf, openAvailabilities)
-        Logger(String.Format("Sending email offer to {0} {1} using email, {2} ", nextEmailed(1), nextEmailed(2), nextEmailed(0)))
-
-        ' After first iteration, include outside operators.
-
-        ' When query returns 0. Select MonthEmailCheck (MEC) records that correlate to the month and reset GotEmailed to 0. Create MEC records for Outside operators if they don't exist
+        OutgoingEmailHandler(openIDs, openAvailabilities, monthYear)
     End Sub
 
     Private Sub HandleAvailabilityAcceptance(ByVal email As String, ByVal id As String)
