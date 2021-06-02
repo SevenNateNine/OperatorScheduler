@@ -285,7 +285,10 @@ Partial Public Class OperatorMainForm
     End Sub
 
     Private Sub HandleAvailabilityAcceptance(ByVal email As String, ByVal id As String)
-        Dim query As String = "UPDATE Availability SET OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) WHERE Id = @Id"
+        Dim query As String = "BEGIN TRANSACTION;
+            UPDATE Availability SET OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) WHERE Id = @Id;
+            UPDATE Operator SET ExtraShifts = ExtraShifts + 1 WHERE EmployeeID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email)
+            COMMIT;"
         Using con As New SqlConnection(conString)
             Using cmd As New SqlCommand(query, con)
                 With cmd
@@ -308,15 +311,15 @@ Partial Public Class OperatorMainForm
 
     Private Sub UpdateMonthEmailCheck(ByVal email As String, ByVal monthYear As String)
         Dim query As String = "UPDATE MonthEmailCheck SET GotEmailed = 1 
-        WHERE OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) 
-        AND MONTH(MonthYear) = MONTH(@MonthYear) AND YEAR(MonthYear) = YEAR(@MonthYear)"
+            WHERE OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) 
+            AND MONTH(MonthYear) = MONTH(@MonthYear) AND YEAR(MonthYear) = YEAR(@MonthYear)"
         Using con As New SqlConnection(conString)
             Using cmd As New SqlCommand(query, con)
                 With cmd
                     .Connection = con
                     .CommandType = CommandType.Text
                     .CommandText = query
-                    .Parameters.AddWithValue("@MonthYear", monthYear)
+                    .Parameters.AddWithValue("@MonthYear", CDate(monthYear))
                     .Parameters.AddWithValue("@Email", email)
                 End With
                 Try
@@ -364,7 +367,7 @@ Partial Public Class OperatorMainForm
                 Time Sent: {2}
                 Subject: '{3}'
                 Message: '{4}'
-                *********************", msgUsername, msgEmail, oMsg.ReceivedTime, msgSubject, msgBody)
+                *********************", msgUsername, msgEmail, oMsg.ReceivedTime, msgSubject, If(msgBody.Length > 25, msgBody.Substring(0, 25) + "...", msgBody))
 
             msgSplitCode = Split(msgSubject, ":")(0)
             msgSplitMonthYear = Split(Split(msgSubject, ":")(1).Trim())(0)
