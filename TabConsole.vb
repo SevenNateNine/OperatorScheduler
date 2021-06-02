@@ -393,16 +393,6 @@ Partial Public Class OperatorMainForm
         ContinueEmailChain(MonthYearPicker.Value)
     End Sub
 
-    Private Sub SendEmailRequest()
-        Try
-            coHandler.sendOptionEmail(oApp, {"nchan1@numc.edu"}, "options test", "Option1;Option2;Option3;Option4;Option5;Option6", "body")
-
-
-        Catch error_t As Exception
-            MsgBox(error_t.ToString)
-        End Try
-    End Sub
-
     ''' <summary>
     ''' Returns True if email arg is in the database. False otherwise. 
     ''' </summary>
