@@ -103,6 +103,40 @@ Partial Public Class OperatorMainForm
         MessageBox.Show(String.Format("Now showing documentation regarding the {0} schedule.", MonthYearPicker.Value.ToString("MMM yyyy")))
     End Sub
 
+    Private Function GetNextToBeEmailed(ByVal monthYear As String) As String()
+        Dim returnArray As String() = {"", "", ""}
+        Dim query As String = "SELECT TOP 1 EmployeeID, FirstName, LastName, Email FROM Operator As O INNER JOIN MonthEmailCheck As M ON O.Id = M.OperatorID 
+        WHERE M.GotEmailed = 0 AND MONTH(M.MonthYear) = MONTH(@MonthYear) AND YEAR(M.MonthYear) = YEAR(@MonthYear) AND Seniority != -1 AND IsOutside = 0 ORDER BY ExtraShifts ASC, Seniority ASC"
+        Using con As New SqlConnection(conString)
+            Using cmd As New SqlCommand(query, con)
+                With cmd
+                    .Connection = con
+                    .CommandType = CommandType.Text
+                    .CommandText = query
+                    .Parameters.Add("@MonthYear", monthYear)
+                End With
+                Try
+                    con.Open()
+                    Dim reader As SqlDataReader = cmd.ExecuteReader()
+                    ' If no records found. Return
+                    If Not reader.Read() Then
+                        ' Clear all relevants MEC records
+                        Logger("Error. Please check database.")
+                        Return Array.Empty(Of String)()
+                    End If
+                    returnArray(0) = reader("Email").ToString().Trim()
+                    returnArray(1) = reader("FirstName").ToString().Trim()
+                    returnArray(2) = reader("LastName").ToString().Trim()
+                    con.Close()
+                Catch ex As Exception
+                    MessageBox.Show(ex.Message.ToString(), "Error")
+                End Try
+            End Using
+        End Using
+
+        Return returnArray
+    End Function
+
     Private Sub StartEmailChain()
         Dim query As String
         Dim output As New List(Of String)()
@@ -131,7 +165,6 @@ Partial Public Class OperatorMainForm
                         idOutput.Add(reader("Id").ToString())
                     End While
                     con.Close()
-                    Dim opMF As OperatorMainForm = OperatorMainForm.ActiveForm
                 Catch ex As Exception
                     MessageBox.Show(ex.Message.ToString(), "Error")
                 End Try
@@ -168,7 +201,6 @@ Partial Public Class OperatorMainForm
                     con.Open()
                     cmd.ExecuteNonQuery()
                     con.Close()
-                    Dim opMF As OperatorMainForm = OperatorMainForm.ActiveForm
                 Catch ex As Exception
                     MessageBox.Show(ex.Message.ToString(), "Error")
                 End Try
@@ -179,39 +211,12 @@ Partial Public Class OperatorMainForm
         Dim opFirstName As String = ""
         Dim opLastName As String = ""
         ' Query returns list of INSIDER operators ordered by extra shifts, and seniority. 
-        query = "SELECT TOP 1 EmployeeID, FirstName, LastName, Email FROM Operator As O INNER JOIN MonthEmailCheck As M ON O.Id = M.OperatorID WHERE M.GotEmailed = 0 AND MONTH(M.MonthYear) = 5 AND Seniority != -1 AND IsOutside = 0 ORDER BY ExtraShifts ASC, Seniority ASC"
-        Using con As New SqlConnection(conString)
-            Using cmd As New SqlCommand(query, con)
-                With cmd
-                    .Connection = con
-                    .CommandType = CommandType.Text
-                    .CommandText = query
-                End With
-                Try
-                    con.Open()
-                    Dim reader As SqlDataReader = cmd.ExecuteReader()
-                    ' If no records found. Return
-                    If Not reader.Read() Then
-                        ' Clear all relevants MEC records
-                        Logger("Error. Please check database.")
-                        Return
-                    End If
-                    opEmail = reader("Email").ToString().Trim()
-                    opFirstName = reader("FirstName").ToString().Trim()
-                    opLastName = reader("LastName").ToString().Trim()
-                    ConsoleAdd(String.Format("{0} {1} is the most senior operator with the least amount of extra shifts.", opFirstName, opLastName))
-                    con.Close()
-                    Dim opMF As OperatorMainForm = OperatorMainForm.ActiveForm
-                Catch ex As Exception
-                    MessageBox.Show(ex.Message.ToString(), "Error")
-                End Try
-            End Using
-        End Using
+        Dim stringArray As String() = GetNextToBeEmailed(MonthYearPicker.Value)
 
         ' Send email to first choice. Mark their ME.GotEmailed = True. Ball is then passed to ReadEmail()
         Dim subject As String = String.Format("{0}/{1} Open Availability Selection", MonthYearPicker.Value.Month, MonthYearPicker.Value.Year)
         Dim options As String = openIDs
-        Dim body As String = String.Format("Please select an number option that corresponds to the desired availability date that you would like to fill. {0}If you do not want any, select the 'Pass' option. {1}", vbLf, openAvailabilities)
+        Dim body As String = String.Format("Please select an number option that corresponds to the desired availability date that you would like to fill.{0}If you do not want any, select the 'Pass' option. {1}", vbLf, openAvailabilities)
         Logger(String.Format("Sending email offer to {0} {1} using email, {2} ", opFirstName, opLastName, opEmail))
         ' coHandler.sendOptionEmail(oApp, {"nchan1@numc.edu"}, subject, options, body)
     End Sub
@@ -224,12 +229,62 @@ Partial Public Class OperatorMainForm
 
         ' Get the most senior person with the least amount of extra shifts who was not e-mailed already. 
         Dim query As String =
-            "SELECT EmployeeID, FirstName, LastName, Email FROM Operator As O INNER JOIN MonthEmailCheck As M ON O.Id = M.OperatorID WHERE M.GotEmailed = 0 AND MONTH(M.Month) = 5 AND Seniority != -1 ORDER BY ExtraShifts, Seniority ASC"
+            "SELECT EmployeeID, FirstName, LastName, Email FROM Operator As O INNER JOIN MonthEmailCheck As M ON O.Id = M.OperatorID 
+            WHERE M.GotEmailed = 0 AND MONTH(M.Month) = 5 AND Seniority != -1 ORDER BY ExtraShifts, Seniority ASC"
         ' After first iteration, include outside operators.
 
         ' When query returns 0. Select MonthEmailCheck (MEC) records that correlate to the month and reset GotEmailed to 0. Create MEC records for Outside operators if they don't exist
     End Sub
 
+    Private Sub HandleAvailabilityAcceptance(ByVal email As String, ByVal id As String)
+        Dim query As String = "UPDATE Availability SET OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) WHERE Id = @Id"
+        Using con As New SqlConnection(conString)
+            Using cmd As New SqlCommand(query, con)
+                With cmd
+                    .Connection = con
+                    .CommandType = CommandType.Text
+                    .CommandText = query
+                    .Parameters.AddWithValue("@Id", id)
+                    .Parameters.AddWithValue("@Email", email)
+                End With
+                Try
+                    con.Open()
+                    cmd.ExecuteNonQuery()
+                    con.Close()
+                Catch ex As Exception
+                    MessageBox.Show(ex.Message.ToString(), "HandleAvailabilityAcceptance() Error")
+                End Try
+            End Using
+        End Using
+    End Sub
+
+    Private Sub UpdateMonthEmailCheck(ByVal email As String, ByVal monthYear As String)
+        Dim query As String = "UPDATE MonthEmailCheck SET GotEmailed = 1 
+        WHERE OperatorID = (SELECT TOP 1 EmployeeID FROM Operator WHERE Email = @Email) 
+        AND MONTH(MonthYear) = MONTH(@MonthYear) AND YEAR(MonthYear) = YEAR(@MonthYear)"
+        Using con As New SqlConnection(conString)
+            Using cmd As New SqlCommand(query, con)
+                With cmd
+                    .Connection = con
+                    .CommandType = CommandType.Text
+                    .CommandText = query
+                    .Parameters.AddWithValue("@MonthYear", monthYear)
+                    .Parameters.AddWithValue("@Email", email)
+                End With
+                Try
+                    con.Open()
+                    cmd.ExecuteNonQuery()
+                    con.Close()
+                Catch ex As Exception
+                    MessageBox.Show(ex.Message.ToString(), "UpdateMonthEmailCheck() Error")
+                End Try
+            End Using
+        End Using
+    End Sub
+
+    ''' <summary>
+    ''' 
+    ''' </summary>
     Private Sub HandleUnreadEmails()
         ' Reads unread emails.
         Logger("Received request to read inbox.")
@@ -237,26 +292,52 @@ Partial Public Class OperatorMainForm
         Dim i As Integer
         Dim oMsg As Outlook.MailItem
         Dim msgSubject As String
+        Dim msgEmail As String
+        Dim msgUsername As String
+        Dim msgBody As String
+
+        Dim msgSplitCode As String
+        Dim msgSplitMonthYear As String
+        Dim msgSubAsInt As Integer
+
         Dim consoleMsg As String = ""
+        If inboxItems.Count <= 0 Then
+            ConsoleAdd("There are no unread emails.")
+            Return
+        End If
         For i = 1 To inboxItems.Count
             oMsg = inboxItems.Item(i)
             msgSubject = oMsg.Subject
+            msgEmail = coHandler.getEmailAddress(oMsg)
+            msgUsername = coHandler.getUsername(oMsg)
+            msgBody = If(Not IsNothing(oMsg.Body), oMsg.Body, "[No message attached]")
             consoleMsg += String.Format("
                 Sender Email: {0} ({1})
                 Time Sent: {2}
-                Subject: {3}
-                Message: {4}
-                *********************", coHandler.getUsername(oMsg), coHandler.getEmailAddress(oMsg), oMsg.ReceivedTime, msgSubject, oMsg.Body)
+                Subject: '{3}'
+                Message: '{4}'
+                *********************", msgUsername, msgEmail, oMsg.ReceivedTime, msgSubject, msgBody)
 
-            ' Switch statement to read msgSubject and process request
+            msgSplitCode = Split(msgSubject, ":")(0)
+            msgSplitMonthYear = Split(Split(msgSubject, ":")(1).Trim())(0)
+            If msgSplitCode.Equals("Pass") Then
+                ConsoleAdd(String.Format("{0} has passed their schedule offer.", msgEmail))
+            ElseIf Integer.TryParse(msgSplitCode, msgSubAsInt) Then
+                ConsoleAdd(String.Format("{0} has taken the availability with the ID, {1}", msgEmail, msgSplitCode))
+                ' Updates availability by ID.
+                HandleAvailabilityAcceptance(msgEmail, msgSplitCode)
+            Else
+                ConsoleAdd("Unknown request. Skip.")
+            End If
+            ' Updates corresponding MEC (using msgSplitMonthYear and email to identify) and move to next email
+            UpdateMonthEmailCheck(msgEmail, msgSplitMonthYear)
+
             ' Marks message as Read to avoid being read again. 
-            'oMsg.UnRead = False
+            oMsg.UnRead = False
         Next
-        ConsoleAdd(consoleMsg)
+        ConsoleAdd(String.Format("Unread messages from inbox: {0}{1}", vbLf, consoleMsg))
 
-        ' If it contains "Open Availability Selection" and is prefaced with an id number or "pass" handle appropriately.
-        ' Pass: Print in console, mark MEC, done.
-        ' ID: Update availability with user EmployeeID, 
+        ' Continue email chain
     End Sub
 
     Private Sub SendEmailRequest()
