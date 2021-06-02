@@ -46,4 +46,46 @@ Public Class CustomOutlookHandler
 
         Return oItems
     End Function
+
+    ''' <summary>
+    ''' Gets e-mail address of sender from MailItem
+    ''' </summary>
+    ''' <param name="oMail"></param>
+    ''' <returns></returns>
+    Function getEmailAddress(oMail As Outlook.MailItem) As String
+        Dim oSender As Outlook.AddressEntry = oMail.Sender
+        Dim emailAddr As String = ""
+        If oSender.AddressEntryUserType = Outlook.OlAddressEntryUserType.olExchangeUserAddressEntry Or oSender.AddressEntryUserType = Outlook.OlAddressEntryUserType.olExchangeRemoteUserAddressEntry Then
+            Dim exchUser As Outlook.ExchangeUser = oSender.GetExchangeUser()
+            If exchUser IsNot Nothing Then
+                emailAddr = exchUser.PrimarySmtpAddress
+            End If
+        Else
+            emailAddr = oMail.SenderEmailAddress
+        End If
+
+        Return emailAddr
+    End Function
+
+    ''' <summary>
+    ''' Get username of sender from MailItem
+    ''' </summary>
+    ''' <param name="oMail"></param>
+    ''' <returns></returns>
+    Function getUsername(oMail As Outlook.MailItem) As String
+        Dim oSender As Outlook.AddressEntry = oMail.Sender
+        Dim username As String = ""
+        If oSender.AddressEntryUserType = Outlook.OlAddressEntryUserType.olExchangeUserAddressEntry Or oSender.AddressEntryUserType = Outlook.OlAddressEntryUserType.olExchangeRemoteUserAddressEntry Then
+            Dim exchUser As Outlook.ExchangeUser = oSender.GetExchangeUser()
+            If exchUser IsNot Nothing Then
+                username = exchUser.Name
+            End If
+        Else
+            username = oMail.SenderName
+        End If
+
+        Return username
+    End Function
+
+
 End Class

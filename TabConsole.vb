@@ -231,20 +231,26 @@ Partial Public Class OperatorMainForm
     End Sub
 
     Private Sub HandleUnreadEmails()
-        ' Reads unread emails
+        ' Reads unread emails.
         Logger("Received request to read inbox.")
         Dim inboxItems As Outlook.Items = coHandler.readEmails(oApp)
         Dim i As Integer
         Dim oMsg As Outlook.MailItem
+        Dim msgSubject As String
         Dim consoleMsg As String = ""
         For i = 1 To inboxItems.Count
             oMsg = inboxItems.Item(i)
+            msgSubject = oMsg.Subject
             consoleMsg += String.Format("
                 Sender Email: {0} ({1})
                 Time Sent: {2}
                 Subject: {3}
-                *********************", oMsg.SenderName, , oMsg.ReceivedTime, oMsg.Subject)
+                Message: {4}
+                *********************", coHandler.getUsername(oMsg), coHandler.getEmailAddress(oMsg), oMsg.ReceivedTime, msgSubject, oMsg.Body)
 
+            ' Switch statement to read msgSubject and process request
+            ' Marks message as Read to avoid being read again. 
+            'oMsg.UnRead = False
         Next
         ConsoleAdd(consoleMsg)
 
@@ -262,4 +268,31 @@ Partial Public Class OperatorMainForm
             MsgBox(error_t.ToString)
         End Try
     End Sub
+
+    ''' <summary>
+    ''' Returns True if email arg is in the database. False otherwise. 
+    ''' </summary>
+    ''' <param name="argEmail"></param>
+    ''' <param name="debug"></param>
+    ''' <returns></returns>
+    Function checkEmail(argEmail As String, Optional debug As Boolean = False) As Boolean
+        Dim query As String =
+            String.Format("SELECT * FROM Operator As O WHERE O.Email = '{0}'", argEmail)
+        Using con As New SqlConnection(conString)
+            If con.State = ConnectionState.Closed Then
+                con.ConnectionString = conString
+            End If
+            Dim cmd As SqlCommand
+            cmd = con.CreateCommand
+            cmd.CommandText = query
+            con.Open()
+            Using sqlRdr As SqlDataReader = cmd.ExecuteReader()
+                If sqlRdr.Read() Then
+                    Return True
+                End If
+            End Using
+            con.Close()
+        End Using
+        Return False
+    End Function
 End Class
