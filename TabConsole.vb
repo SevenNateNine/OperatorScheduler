@@ -400,6 +400,7 @@ Partial Public Class OperatorMainForm
         Dim msgUsername As String
         Dim msgBody As String
 
+        Dim msgSplit As String()
         Dim msgSplitCode As String
         Dim msgSplitMonthYear As String
         Dim msgSubAsInt As Integer
@@ -418,12 +419,13 @@ Partial Public Class OperatorMainForm
             consoleMsg += String.Format("
                 Sender Email: {0} ({1})
                 Time Sent: {2}
-                Subject: '{3}'
-                Message: '{4}'
+                Subject: {3}
+                Message: {4}
                 *********************", msgUsername, msgEmail, oMsg.ReceivedTime, msgSubject, If(msgBody.Length > 25, msgBody.Substring(0, 25) + "...", msgBody))
 
-            msgSplitCode = Split(msgSubject, ":")(0)
-            msgSplitMonthYear = Split(Split(msgSubject, ":")(1).Trim())(0)
+            msgSplit = Split(msgSubject, ":")
+            msgSplitCode = msgSplit(0)
+
             If msgSplitCode.Equals("Pass") Then
                 ConsoleAdd(String.Format("{0} has passed their schedule offer.", msgEmail))
             ElseIf Integer.TryParse(msgSplitCode, msgSubAsInt) Then
@@ -433,17 +435,18 @@ Partial Public Class OperatorMainForm
             Else
                 ConsoleAdd("Unknown request. Skip.")
             End If
-            ' Updates corresponding MEC (using msgSplitMonthYear and email to identify) and move to next email
-            UpdateMonthEmailCheck(msgEmail, msgSplitMonthYear)
+
+            If msgSplitCode.Equals("Pass") Or Integer.TryParse(msgSplitCode, msgSubAsInt) Then
+                ' Updates corresponding MEC (using msgSplitMonthYear and email to identify) and move to next email
+                msgSplitMonthYear = Split(msgSplit(1).Trim())(0)
+                UpdateMonthEmailCheck(msgEmail, msgSplitMonthYear)
+                ContinueEmailChain(msgSplitMonthYear)
+            End If
 
             ' Marks message as Read to avoid being read again. 
             oMsg.UnRead = False
         Next
         ConsoleAdd(String.Format("Unread messages from inbox: {0}{1}", vbLf, consoleMsg))
-
-        ' Continue email chain
-        ' Continue Chain
-        ContinueEmailChain(MonthYearPicker.Value)
     End Sub
     ''' <summary>
     ''' 
