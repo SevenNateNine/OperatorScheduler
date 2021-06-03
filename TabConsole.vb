@@ -133,9 +133,9 @@ Partial Public Class OperatorMainForm
                     con.Open()
                     Dim reader As SqlDataReader = cmd.ExecuteReader()
                     ' If no records found. Return.
-                    If Not reader.Read() Then
+                    If Not reader.HasRows() Then
                         Logger(String.Format("All availabilities of {0}/{1} have been filled!", MonthYearPicker.Value.Month, MonthYearPicker.Value.Year))
-                        Return Array.Empty(Of List(Of String))()
+                        Return Nothing
                     End If
                     While reader.Read()
                         output.Add(String.Format("{0}: {1} {2} - {3} {4}", reader("Id").ToString(), reader("StartDate").ToString().Split(" ")(0), reader("StartTime").ToString(), reader("EndDate").ToString().Split(" ")(0), reader("EndTime").ToString()))
@@ -158,7 +158,7 @@ Partial Public Class OperatorMainForm
     ''' </returns>
     Private Function GetMAWrapper() As String()
         Dim lists As List(Of String)() = GetMissingAvailabilities()
-        If lists Is Array.Empty(Of List(Of String))() Then
+        If lists Is Nothing Then
             Return Nothing
         End If
         Dim output As List(Of String) = lists(0)
@@ -268,7 +268,7 @@ Partial Public Class OperatorMainForm
         Logger(String.Format("Sending email offer to {0} {1} using email, {2} ", nextEmailed(1), nextEmailed(2), nextEmailed(0)))
 
         ' Replace 
-        coHandler.sendOptionEmail(oApp, {nextEmailed(1)}, subject, options, body)
+        coHandler.sendOptionEmail(oApp, {nextEmailed(0)}, subject, options, body)
     End Sub
     ''' <summary>
     '''     Begins email chain by getting the unassigned shifts, creating MonthEmailCheck records for the given month, then passing the unassigned shifts to OutgoingEmailHandler(). 
@@ -391,7 +391,7 @@ Partial Public Class OperatorMainForm
     ''' </summary>
     Private Sub HandleUnreadEmails()
         ' Reads unread emails.
-        Logger("Received request to read inbox.", 8)
+        Logger(String.Format("Received request to read inbox of {0}.", designatedEmail), 8)
         Dim inboxItems As Outlook.Items = coHandler.readEmails(oApp)
         Dim i As Integer
         Dim oMsg As Outlook.MailItem

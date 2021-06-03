@@ -1,8 +1,12 @@
 ﻿Imports System.Data.SqlClient
 Imports Microsoft.Office.Interop
+Imports System.Xml
+Imports System.IO
 
 Public Class OperatorMainForm
     Dim conString As String = "Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Users\nchan1\source\repos\OperatorScheduler\OpSchedDatabase.mdf;Integrated Security=True;Connect Timeout=30"
+    Dim designatedEmail As String = ""
+    Dim designatedEmailPass As String = ""
     Dim sdaOperator As SqlDataAdapter
     Dim sdaAvailability As SqlDataAdapter
     Dim dsOperator As New DataSet
@@ -16,12 +20,22 @@ Public Class OperatorMainForm
     Dim startDateIndex As Integer = 4
     Dim endDateIndex As Integer = 6
     Dim isScheduledIndex As Integer = 8
+    Private Function TreatXML(xmlValue As String)
+        Return System.Text.RegularExpressions.Regex.Replace(xmlValue, "\s+", " ").Trim()
+    End Function
+    Private Sub ReadFromXML()
+        Dim xd As XDocument = XDocument.Load("C:\Users\nchan1\source\repos\OperatorScheduler\Defaults.xml")
+        designatedEmail = TreatXML(xd.<email_information>.<email_address>.Value)
+        designatedEmailPass = TreatXML(xd.<email_information>.<email_password>.Value)
+    End Sub
 
     Private Sub New()
+        ReadFromXML()
+        MessageBox.Show(String.Format("{0} {1}", designatedEmail, designatedEmailPass))
         oApp = New Outlook.Application
         acc = Nothing
         For Each account As Outlook.Account In oApp.Session.Accounts
-            If account.SmtpAddress.Equals("opot@numc.edu", StringComparison.CurrentCultureIgnoreCase) Then
+            If account.SmtpAddress.Equals(designatedEmail, StringComparison.CurrentCultureIgnoreCase) Then
                 acc = account
                 Exit For
             End If
@@ -30,10 +44,10 @@ Public Class OperatorMainForm
         If acc IsNot Nothing Then
 
         Else
-            Throw New Exception("Please login to opot@numc.edu on Outlook before proceeding.")
+            Throw New Exception(String.Format("Please login to {0} on Outlook before proceeding.", designatedEmail))
         End If
 
-        coHandler = New CustomOutlookHandler(acc)
+        coHandler = New CustomOutlookHandler(acc, designatedEmail, designatedEmailPass)
         ' This call is required by the designer.
         InitializeComponent()
 

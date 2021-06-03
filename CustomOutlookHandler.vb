@@ -1,10 +1,13 @@
 ﻿Imports Microsoft.Office.Interop
-Imports Microsoft.VisualBasic
 
 Public Class CustomOutlookHandler
     Dim acc As Outlook.Account
-    Sub New(arg_acc As Outlook.Account)
+    Dim email As String
+    Dim password As String
+    Sub New(arg_acc As Outlook.Account, arg_email As String, arg_pw As String)
         acc = arg_acc
+        email = arg_email
+        password = arg_pw
     End Sub
     ''' <summary>
     ''' 
@@ -58,13 +61,13 @@ Public Class CustomOutlookHandler
     End Sub
 
     Function readEmails(oApp As Outlook.Application) As Outlook.Items
-        oApp.Session.Logon("opot@numc.edu", "Numc0603")
+        oApp.Session.Logon(email, password)
         Dim oNS As Outlook.NameSpace = oApp.GetNamespace("mapi")
-        Dim oInbox As Outlook.MAPIFolder = oNS.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox)
+        'Dim oInbox As Outlook.MAPIFolder = oNS.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox)
+        Dim oInbox As Outlook.MAPIFolder = oNS.Folders(email).Folders("Inbox")
         Dim oItems As Outlook.Items = oInbox.Items
         oItems = oItems.Restrict("[Unread] = true")
 
-        sendEmail(oApp, {"nchan1@numc.edu"}, "opot_test", "body")
         oNS.Logoff()
 
         Return oItems
