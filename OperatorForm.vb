@@ -4,7 +4,7 @@ Imports System.Xml
 Imports System.IO
 
 Public Class OperatorMainForm
-    Dim conString As String = "Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Users\nchan1\source\repos\OperatorScheduler\OpSchedDatabase.mdf;Integrated Security=True;Connect Timeout=30"
+    Dim conString As String = ""
     Dim designatedEmail As String = ""
     Dim designatedEmailPass As String = ""
     Dim sdaOperator As SqlDataAdapter
@@ -23,15 +23,18 @@ Public Class OperatorMainForm
     Private Function TreatXML(xmlValue As String)
         Return System.Text.RegularExpressions.Regex.Replace(xmlValue, "\s+", " ").Trim()
     End Function
+    ''' <summary>
+    '''     Sets global values to configuration file
+    ''' </summary>
     Private Sub ReadFromXML()
-        Dim xd As XDocument = XDocument.Load("C:\Users\nchan1\source\repos\OperatorScheduler\Defaults.xml")
-        designatedEmail = TreatXML(xd.<email_information>.<email_address>.Value)
-        designatedEmailPass = TreatXML(xd.<email_information>.<email_password>.Value)
+        Dim xd As XDocument = XDocument.Load("\\auricle\Communications\OperatorSchedulerApplication\Config\Defaults.xml")
+        designatedEmail = TreatXML(xd.<root>.<email>.<email_address>.Value)
+        designatedEmailPass = TreatXML(xd.<root>.<email>.<email_password>.Value)
+        conString = TreatXML(xd.<root>.<database>.<connection_string>.Value)
     End Sub
 
     Private Sub New()
         ReadFromXML()
-        MessageBox.Show(String.Format("{0} {1}", designatedEmail, designatedEmailPass))
         oApp = New Outlook.Application
         acc = Nothing
         For Each account As Outlook.Account In oApp.Session.Accounts
