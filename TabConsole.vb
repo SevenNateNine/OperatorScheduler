@@ -159,7 +159,7 @@ Partial Public Class OperatorMainForm
     Private Function GetMAWrapper() As String()
         Dim lists As List(Of String)() = GetMissingAvailabilities()
         If lists Is Array.Empty(Of List(Of String))() Then
-            Return {""}
+            Return Nothing
         End If
         Dim output As List(Of String) = lists(0)
         Dim idOutput As List(Of String) = lists(1)
@@ -271,18 +271,19 @@ Partial Public Class OperatorMainForm
         coHandler.sendOptionEmail(oApp, {nextEmailed(1)}, subject, options, body)
     End Sub
     ''' <summary>
-    ''' 
+    '''     Begins email chain by getting the unassigned shifts, creating MonthEmailCheck records for the given month, then passing the unassigned shifts to OutgoingEmailHandler(). 
     ''' </summary>
     Private Sub StartEmailChain()
         Dim query As String
         ConsoleAdd("Collecting unassigned shifts.")
         ' Get missing availabilities. If none. End chain.
         Dim gmawResults As String() = GetMAWrapper()
-        Dim openIDs As String = gmawResults(0)
-        Dim openAvailabilities As String = gmawResults(1)
-        If openIDs.Length = 0 Then
+        If gmawResults Is Nothing Then
             Return
         End If
+        Dim openIDs As String = gmawResults(0)
+        Dim openAvailabilities As String = gmawResults(1)
+
 
         ' For each INSIDER operator create MEC records for the selected month.
         query = "BEGIN 
@@ -313,7 +314,7 @@ Partial Public Class OperatorMainForm
         OutgoingEmailHandler(openIDs, openAvailabilities, MonthYearPicker.Value)
     End Sub
     ''' <summary>
-    ''' 
+    '''     Assigns unassigned shift to operator and increments their extrashift count by 1
     ''' </summary>
     ''' <param name="email"></param>
     ''' <param name="id"></param>
@@ -342,7 +343,7 @@ Partial Public Class OperatorMainForm
         End Using
     End Sub
     ''' <summary>
-    ''' 
+    '''     
     ''' </summary>
     ''' <param name="email"></param>
     ''' <param name="monthYear"></param>
@@ -376,12 +377,12 @@ Partial Public Class OperatorMainForm
     Private Sub ContinueEmailChain(monthYear As String)
         ' Get missing availabilities. 
         Dim gmawResults As String() = GetMAWrapper()
-        Dim openIDs As String = gmawResults(0)
-        Dim openAvailabilities As String = gmawResults(1)
         ' If none. End chain.
-        If openIDs.Length = 0 Then
+        If gmawResults Is Nothing Then
             Return
         End If
+        Dim openIDs As String = gmawResults(0)
+        Dim openAvailabilities As String = gmawResults(1)
 
         OutgoingEmailHandler(openIDs, openAvailabilities, monthYear)
     End Sub

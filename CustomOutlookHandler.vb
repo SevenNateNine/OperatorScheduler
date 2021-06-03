@@ -2,6 +2,18 @@
 Imports Microsoft.VisualBasic
 
 Public Class CustomOutlookHandler
+    Dim acc As Outlook.Account
+    Sub New(arg_acc As Outlook.Account)
+        acc = arg_acc
+    End Sub
+    ''' <summary>
+    ''' 
+    ''' </summary>
+    ''' <param name="oApp"></param>
+    ''' <param name="recipients"></param>
+    ''' <param name="subject"></param>
+    ''' <param name="body"></param>
+    ''' <param name="debug"></param>
     Sub sendEmail(oApp As Outlook.Application, recipients() As String, subject As String, body As String, Optional debug As Boolean = False)
         Try
             Dim oMsg As Outlook.MailItem
@@ -12,12 +24,21 @@ Public Class CustomOutlookHandler
             oMsg.Subject = subject
             oMsg.Body = body
             oMsg.BodyFormat = Outlook.OlBodyFormat.olFormatHTML
+            oMsg.SendUsingAccount = acc
             oMsg.Send()
         Catch ex As Exception
             Console.WriteLine(ex.Message.ToString())
         End Try
     End Sub
-
+    ''' <summary>
+    ''' 
+    ''' </summary>
+    ''' <param name="oApp"></param>
+    ''' <param name="recipients"></param>
+    ''' <param name="subject"></param>
+    ''' <param name="votingOptions"></param>
+    ''' <param name="body"></param>
+    ''' <param name="debug"></param>
     Sub sendOptionEmail(oApp As Outlook.Application, recipients() As String, subject As String, votingOptions As String, body As String, Optional debug As Boolean = False)
         Try
             Dim oMsg As Outlook.MailItem
@@ -29,6 +50,7 @@ Public Class CustomOutlookHandler
             oMsg.Body = body
             oMsg.VotingOptions = votingOptions
             oMsg.BodyFormat = Outlook.OlBodyFormat.olFormatHTML
+            oMsg.SendUsingAccount = acc
             oMsg.Send()
         Catch ex As Exception
             Console.WriteLine(ex.Message.ToString())
@@ -36,19 +58,20 @@ Public Class CustomOutlookHandler
     End Sub
 
     Function readEmails(oApp As Outlook.Application) As Outlook.Items
+        oApp.Session.Logon("opot@numc.edu", "Numc0603")
         Dim oNS As Outlook.NameSpace = oApp.GetNamespace("mapi")
-        ' oNS.Logon() ' to do 
         Dim oInbox As Outlook.MAPIFolder = oNS.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox)
         Dim oItems As Outlook.Items = oInbox.Items
         oItems = oItems.Restrict("[Unread] = true")
 
+        sendEmail(oApp, {"nchan1@numc.edu"}, "opot_test", "body")
         oNS.Logoff()
 
         Return oItems
     End Function
 
     ''' <summary>
-    ''' Gets e-mail address of sender from MailItem
+    '''     Gets e-mail address of sender from MailItem
     ''' </summary>
     ''' <param name="oMail"></param>
     ''' <returns></returns>
@@ -68,7 +91,7 @@ Public Class CustomOutlookHandler
     End Function
 
     ''' <summary>
-    ''' Get username of sender from MailItem
+    '''     Get username of sender from MailItem
     ''' </summary>
     ''' <param name="oMail"></param>
     ''' <returns></returns>

@@ -11,6 +11,7 @@ Public Class OperatorMainForm
     Dim oApp As Outlook.Application
     Dim coHandler As CustomOutlookHandler
     ' Dim oNameSpace As Outlook.NameSpace = oApp.GetNamespace("mapi")
+    Dim acc As Outlook.Account
 
     Dim startDateIndex As Integer = 4
     Dim endDateIndex As Integer = 6
@@ -18,7 +19,21 @@ Public Class OperatorMainForm
 
     Private Sub New()
         oApp = New Outlook.Application
-        coHandler = New CustomOutlookHandler()
+        acc = Nothing
+        For Each account As Outlook.Account In oApp.Session.Accounts
+            If account.SmtpAddress.Equals("opot@numc.edu", StringComparison.CurrentCultureIgnoreCase) Then
+                acc = account
+                Exit For
+            End If
+        Next
+
+        If acc IsNot Nothing Then
+
+        Else
+            Throw New Exception("Please login to opot@numc.edu on Outlook before proceeding.")
+        End If
+
+        coHandler = New CustomOutlookHandler(acc)
         ' This call is required by the designer.
         InitializeComponent()
 
